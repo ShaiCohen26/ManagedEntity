@@ -1,35 +1,79 @@
-🚧 Work In Progress 
-========
+Demonstrates the use of source generators for tasks normally left to runtime reflection.
 
-These samples are for an in-progress feature of Roslyn. As such they may change or break as the feature is developed, and no level of support is implied.
 
-For more infomation on the Source Generators feature, see the [design document](https://github.com/dotnet/roslyn/blob/main/docs/features/source-generators.md).
+## `ManagedEntity` Class
+```csharp
+[Managed(EnableAudit = true, EnableSoftDelete = true)]
+public partial class ManagedEntity
+{
+	[Persisted(SetOnInsert = true)]
+	private int _idParent;
 
-Prerequisites
------
-
-These samples require Visual Studio 16.6 or higher.
-
-Building the samples
------
-Open `SourceGenerators.sln` in Visual Studio or run `dotnet build` from the `\SourceGenerators` directory.
-
-Running the samples
------
-
-The generators must be run as part of another build, as they inject source into the project being built. This repo contains a sample project `GeneratorDemo` that relies of the sample generators to add code to it's compilation. 
-
-Run `GeneratedDemo` in Visual studio or run `dotnet run` from the `GeneratorDemo` directory.
-
-Using the samples in your project
------
-
-You can add the sample generators to your own project by adding an item group containing an analyzer reference:
-
-```xml
-<ItemGroup>
-    <Analyzer Include="path\to\SourceGeneratorSamples.dll">
-</ItemGroup>
+	[Persisted(SetOnInsert = true, SetOnUpdate = true)]
+	private string _name;
+}
 ```
 
-You may need to close and reopen the solution in Visual Studio for the change to take effect.
+## tests
+
+### create new
+```c#
+ManagedEntity entityAuthority = new ManagedEntity { Id = authId, IdParent = 1};
+ManagedEntity entityToCreate = new ManagedEntity { Id = Guid.NewGuid(), IdParent = 2, CreatedBy = "user1" };
+entityToCreate.MapToAuthorityInsert(entityAuthority);
+```	
+##### *result:*
+```json
+{
+	"Id": "2dd23b8a-a150-4038-8819-776bc16e4d9e",
+	"IdParent": 2,
+	"Name": null,
+	"CreatedDate": "2022-12-28T15:00:22.9998815Z",
+	"CreatedBy": "user1",
+	"ModifiedLastDate": null,
+	"ModifiedLastBy": null,
+	"IsDeleted": false,
+	"DeletedDate": null,
+	"DeletedBy": null
+}
+```
+### update
+```c#
+ManagedEntity entityToUpdate = new ManagedEntity { Id = Guid.NewGuid(), IdParent = 3, CreatedBy = "user2", ModifiedLastBy = "user2" };
+entityToUpdate.MapToAuthorityUpdate(entityAuthority);
+```	
+##### *result:*
+```json
+{
+	"Id": "2dd23b8a-a150-4038-8819-776bc16e4d9e",
+	"IdParent": 2,
+	"Name": null,
+	"CreatedDate": "2022-12-28T15:00:22.9998815Z",
+	"CreatedBy": "user1",
+	"ModifiedLastDate": "2022-12-28T15:00:23.0009883Z",
+	"ModifiedLastBy": "user2",
+	"IsDeleted": false,
+	"DeletedDate": null,
+	"DeletedBy": null
+}
+```			
+### soft delete
+```c#
+ManagedEntity entityToDelete = new ManagedEntity { Id = Guid.NewGuid(), IdParent = 4, CreatedBy = "user3", DeletedBy = "user3" };
+entityToDelete.MapToAuthorityDelete(entityAuthority);
+```	
+##### *result:*
+```json
+{
+	"Id": "2dd23b8a-a150-4038-8819-776bc16e4d9e",
+	"IdParent": 2,
+	"Name": null,
+	"CreatedDate": "2022-12-28T15:00:22.9998815Z",
+	"CreatedBy": "user1",
+	"ModifiedLastDate": "2022-12-28T15:00:23.0009883Z",
+	"ModifiedLastBy": "user2",
+	"IsDeleted": true,
+	"DeletedDate": "2022-12-28T15:00:23.0012889Z",
+	"DeletedBy": "user3"
+}
+```						
